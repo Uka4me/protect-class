@@ -15,8 +15,17 @@
     "build": "tsc --build && npx fix-esm-import-path ./dist",
     "test": "jest --coverage"
   },
-  "author": "",
+  "author": "Uka4me",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Uka4me/protect-class.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Uka4me/protect-class/issues"
+  },
+  "homepage": "https://github.com/Uka4me/protect-class",
+  "keywords": ["class", "protect", "fields"],
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "fix-esm-import-path": "^1.6.0",
