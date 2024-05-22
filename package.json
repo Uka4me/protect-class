@@ -1,0 +1,28 @@
+{
+  "name": "protect-class",
+  "version": "0.0.1",
+  "description": "A small utility that allows you to protect a js class from changes (adding, removing fields) and traversing the public fields of the class, including getters.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "directories": {
+    "test": "tests"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --build && npx fix-esm-import-path ./dist",
+    "test": "jest --coverage"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "fix-esm-import-path": "^1.6.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.4"
+  }
+}
