@@ -1,6 +1,6 @@
 {
   "name": "protect-class",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A small utility that allows you to protect a js class from changes (adding, removing fields) and traversing the public fields of the class, including getters.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -25,7 +25,11 @@
     "url": "https://github.com/Uka4me/protect-class/issues"
   },
   "homepage": "https://github.com/Uka4me/protect-class",
-  "keywords": ["class", "protect", "fields"],
+  "keywords": [
+    "class",
+    "protect",
+    "fields"
+  ],
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "fix-esm-import-path": "^1.6.0",
