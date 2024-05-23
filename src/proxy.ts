@@ -1,3 +1,43 @@
+interface ProxyHandlerExt<T extends Object> extends ProxyHandler<T> {
+  fields: Set<string>;
+}
+
+export interface IOptionsProtectedObject {
+  allowProtectedField?: boolean;
+  allowReadError?: boolean;
+  allowWriteError?: boolean;
+  disableDeleteError?: boolean;
+  disableCache?: boolean;
+};
+
+export type IProtectedObject = <T extends Object>(cls: T, options?: IOptionsProtectedObject) => T;
+
+
+const cacheFields = new Map<string, Set<string>>();
+
+/**
+ * Retrieves a value from the cache if it exists, otherwise computes it using the provided function.
+ *
+ * @param {T extends Object} cls - The class to retrieve the value for.
+ * @param {IOptionsProtectedObject | undefined} options - The options to use for caching.
+ * @param {() => Set<string>} fn - The function to compute the value if it is not in the cache.
+ * @return {Set<string>} The cached value or the computed value.
+ */
+const getFromCache = function <T extends Object>(cls: T, options: IOptionsProtectedObject | undefined, fn: () => Set<string>) {
+  const name = cls.constructor?.name;
+  const cache_name = `${name}_${JSON.stringify(options)}`;
+  
+  if (!name || name === 'Object' || options?.disableCache) {
+      return fn();
+  }
+  
+  if (!cacheFields.has(cache_name)) {
+      cacheFields.set(cache_name, fn());
+  }
+  
+  return cacheFields.get(cache_name) as Set<string>;
+}
+
 /**
  * Recursively sets the enumerable getters of a class and its prototype chain.
  *
@@ -22,19 +62,6 @@ const setEnumerableGetters = <T>(cls: T, fields: Set<string> = new Set()) => {
   return fields;
 };
 
-interface ProxyHandlerExt<T extends Object> extends ProxyHandler<T> {
-  fields: Set<string>;
-}
-
-export interface IOptionsProtectedObject {
-  allowProtectedField?: boolean;
-  allowReadError?: boolean;
-  allowWriteError?: boolean;
-  disableDeleteError?: boolean;
-};
-
-export type IProtectedObject = <T extends Object>(cls: T, options?: IOptionsProtectedObject) => T;
-
 /**
  * Creates a protected class proxy that restricts access to certain properties.
  *
@@ -44,6 +71,7 @@ export type IProtectedObject = <T extends Object>(cls: T, options?: IOptionsProt
  * @param {boolean} [options.allowReadError] - Allow throwing an error when trying to access an unknown property.
  * @param {boolean} [options.allowWriteError] - Allow throwing an error when trying to write to an unknown property.
  * @param {boolean} [options.disableDeleteError] - Disable throwing an error when trying to delete a property.
+ * @param {boolean} [options.disableCache] - Disable caching of the enumerable getters.
  * @return {Proxy<T>} The protected class proxy.
  */
 const protectedClass: IProtectedObject = <T extends Object>(cls: T, options?: IOptionsProtectedObject) => {
@@ -52,7 +80,14 @@ const protectedClass: IProtectedObject = <T extends Object>(cls: T, options?: IO
   };
 
   const handler: ProxyHandlerExt<T> = {
-    fields: setEnumerableGetters(cls, new Set(Object.keys(cls).filter(key => isAllowProtectedField(key)))),
+    fields: getFromCache(
+      cls,
+      options,
+      () => setEnumerableGetters(
+        cls, 
+        new Set(Object.keys(cls).filter(key => isAllowProtectedField(key)))
+      )
+    ),
     get(target: any, prop: string) {
       //console.log('Proxy::get', prop, target);
       if (prop in target && isAllowProtectedField(prop) && !prop.startsWith('#')) {
