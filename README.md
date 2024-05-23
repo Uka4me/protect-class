@@ -17,7 +17,7 @@ class Foo {
   public bar: string = 'bar';
 }
 
-const cls = protect(Foo);
+const cls = protect(new Foo);
 ...
 
 ```
