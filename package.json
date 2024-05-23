@@ -1,6 +1,6 @@
 {
   "name": "protect-class",
-  "version": "0.0.2",
+  "version": "0.1.1",
   "description": "A small utility that allows you to protect a js class from changes (adding, removing fields) and traversing the public fields of the class, including getters.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
