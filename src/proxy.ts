@@ -1,3 +1,5 @@
+'use strict';
+
 interface ProxyHandlerExt<T extends Object> extends ProxyHandler<T> {
   fields: Set<string>;
 }
@@ -10,10 +12,22 @@ export interface IOptionsProtectedObject {
   disableCache?: boolean;
 };
 
-export type IProtectedObject = <T extends Object>(cls: T, options?: IOptionsProtectedObject) => T;
+export type IProtectedProxy = <T extends Object>(cls: T, options?: IOptionsProtectedObject) => T;
 
+type ConstructorObject = { new (...args: any[]): {} };
 
 const cacheFields = new Map<string, Set<string>>();
+
+/**
+ * Retrieves the fields of a class by caching them if possible.
+ *
+ * @param {T extends Object} cls - The class to retrieve the fields for.
+ * @param {IOptionsProtectedObject} [options] - Options for protecting the class.
+ * @return {Set<string>} The cached or computed fields of the class.
+ */
+const getFieldsByClass = <T extends Object>(cls: T, options?: IOptionsProtectedObject) => {
+  return getFieldsFromCache(cls, options, () => setEnumerableGetters(cls));
+}
 
 /**
  * Retrieves a value from the cache if it exists, otherwise computes it using the provided function.
@@ -23,7 +37,7 @@ const cacheFields = new Map<string, Set<string>>();
  * @param {() => Set<string>} fn - The function to compute the value if it is not in the cache.
  * @return {Set<string>} The cached value or the computed value.
  */
-const getFromCache = function <T extends Object>(cls: T, options: IOptionsProtectedObject | undefined, fn: () => Set<string>) {
+const getFieldsFromCache = function <T extends Object>(cls: T, options: IOptionsProtectedObject | undefined, fn: () => Set<string>) {
   const name = cls.constructor?.name;
   const cache_name = `${name}_${JSON.stringify(options)}`;
   
@@ -45,56 +59,38 @@ const getFromCache = function <T extends Object>(cls: T, options: IOptionsProtec
  * @param {Set<string>} [fields=new Set()] - The set of fields to add the enumerable getters to.
  * @return {Set<string>} - The set of fields with the enumerable getters added.
  */
-const setEnumerableGetters = <T>(cls: T, fields: Set<string> = new Set()) => {
+const setEnumerableGetters = <T extends Object>(cls: T, fields: Set<string> = new Set()) => {
   const p = Object.getPrototypeOf(cls);
   if (!Object.getPrototypeOf(p)) {
-      return fields;
+    return fields;
   }
     
-  setEnumerableGetters(p);
+  fields = setEnumerableGetters(p, fields);
+  Object.keys(cls).forEach(fields.add, fields);
 
   for(const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(p))) {
-      if (typeof descriptor.get === 'function') {
-        fields.add(key);
-      }
+    if (typeof descriptor.get === 'function') {
+      fields.add(key);
+    }
   }
 
   return fields;
 };
 
-/**
- * Creates a protected class proxy that restricts access to certain properties.
- *
- * @param {T extends Object} cls - The class to be protected.
- * @param {IOptionsProtectedObject} [options] - Options for protecting the class.
- * @param {boolean} [options.allowProtectedField] - Allow access to protected fields (fields starting with "_").
- * @param {boolean} [options.allowReadError] - Allow throwing an error when trying to access an unknown property.
- * @param {boolean} [options.allowWriteError] - Allow throwing an error when trying to write to an unknown property.
- * @param {boolean} [options.disableDeleteError] - Disable throwing an error when trying to delete a property.
- * @param {boolean} [options.disableCache] - Disable caching of the enumerable getters.
- * @return {Proxy<T>} The protected class proxy.
- */
-const protectedClass: IProtectedObject = <T extends Object>(cls: T, options?: IOptionsProtectedObject) => {
+const createProxy = <T extends Object>(cls: T, fields: Set<string>, options?: IOptionsProtectedObject) => {
   const isAllowProtectedField = (key: string) => {
     return !!options?.allowProtectedField || !key.startsWith('_');
   };
-
+  
   const handler: ProxyHandlerExt<T> = {
-    fields: getFromCache(
-      cls,
-      options,
-      () => setEnumerableGetters(
-        cls, 
-        new Set(Object.keys(cls).filter(key => isAllowProtectedField(key)))
-      )
-    ),
+    fields: new Set([...fields].filter(key => isAllowProtectedField(key))),
     get(target: any, prop: string) {
       //console.log('Proxy::get', prop, target);
       if (prop in target && isAllowProtectedField(prop) && !prop.startsWith('#')) {
         let value = Reflect.get(target, prop);
         return typeof value == 'function' ? value.bind(target) : value;
       } else if (options?.allowReadError) {
-        throw new Error("Access denied");
+        throw new TypeError("Access denied");
       } else{
         return undefined;
       }
@@ -104,7 +100,7 @@ const protectedClass: IProtectedObject = <T extends Object>(cls: T, options?: IO
       if (this.fields.has(prop)) {
         Reflect.set(target, prop, value);
       } else if (options?.allowWriteError) {
-        throw new Error("Access denied");
+        throw new TypeError("Access denied");
       }
 
       return true;
@@ -128,7 +124,7 @@ const protectedClass: IProtectedObject = <T extends Object>(cls: T, options?: IO
     },
     deleteProperty(target, prop) {
       if (!options?.disableDeleteError) {
-        throw new Error("Access denied");
+        throw new TypeError("Access denied");
       }
 
       return true;
@@ -136,6 +132,50 @@ const protectedClass: IProtectedObject = <T extends Object>(cls: T, options?: IO
   };
 
   return new Proxy(cls, handler);
+}
+
+/**
+ * Creates a protected class proxy that restricts access to certain properties.
+ *
+ * @param {T extends Object} cls - The class to be protected.
+ * @param {IOptionsProtectedObject} [options] - Options for protecting the class.
+ * @param {boolean} [options.allowProtectedField] - Allow access to protected fields (fields starting with "_").
+ * @param {boolean} [options.allowReadError] - Allow throwing an error when trying to access an unknown property.
+ * @param {boolean} [options.allowWriteError] - Allow throwing an error when trying to write to an unknown property.
+ * @param {boolean} [options.disableDeleteError] - Disable throwing an error when trying to delete a property.
+ * @param {boolean} [options.disableCache] - Disable caching of the enumerable getters.
+ * @return {Proxy<T>} The protected class proxy.
+ */
+export const protect: IProtectedProxy = <T extends Object>(cls: T, options?: IOptionsProtectedObject) => {
+  const fields = getFieldsByClass(cls, options);
+
+  return createProxy(cls, fields, options);
 };
 
-export default protectedClass;
+/**
+ * Returns a decorator function that creates a protected class proxy.
+ *
+ * @param {Partial<IOptionsProtectedObject>} [options] - Options for protecting the class.
+ * @param {boolean} [options.allowProtectedField] - Allow access to protected fields (fields starting with "_").
+ * @param {boolean} [options.allowReadError] - Allow throwing an error when trying to access an unknown property.
+ * @param {boolean} [options.allowWriteError] - Allow throwing an error when trying to write to an unknown property.
+ * @param {boolean} [options.disableDeleteError] - Disable throwing an error when trying to delete a property.
+ * @param {boolean} [options.disableCache] - Disable caching of the enumerable getters.
+ * @return {(target: T, context: ClassDecoratorContext) => any} - The decorator function.
+ */
+export function Protect(options?: IOptionsProtectedObject) {
+  return function<T extends ConstructorObject>(target: T, context: ClassDecoratorContext) {
+    if (context.kind === "class") {
+      const cls = new target;
+      const fields = getFieldsByClass(cls, options as IOptionsProtectedObject);
+
+      return new Proxy(target, {
+        construct(target, args) {
+          return createProxy(Reflect.construct(target, args) as T, fields, options as IOptionsProtectedObject);
+        },
+      });
+    }
+
+    throw new TypeError("Wrong data type, must be a class");
+  }
+}

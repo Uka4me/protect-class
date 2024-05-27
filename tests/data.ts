@@ -1,5 +1,5 @@
 import { protect } from '../src/index';
-import { IOptionsProtectedObject } from '../src/proxy';
+import { IOptionsProtectedObject, Protect } from '../src/proxy';
 
 export class Test2 {
   test3: any = undefined;
@@ -61,5 +61,27 @@ export class Test extends Test2 {
 
   func4() {
     return this._test4;
+  }
+}
+
+@Protect()
+export class TestDecoration extends Test {
+  constructor() {
+    super();
+  }
+  static create() {
+    return new this();
+  }
+}
+
+@Protect({
+  allowWriteError: true
+})
+export class TestDecorationOptions extends Test {
+  constructor() {
+    super();
+  }
+  static create() {
+    return new this();
   }
 }

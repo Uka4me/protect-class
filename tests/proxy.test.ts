@@ -1,5 +1,5 @@
 import {describe, expect, test} from '@jest/globals';
-import { Test } from './data';
+import { Test, TestDecoration, TestDecorationOptions } from './data';
 
 
 describe('proxy', () => {
@@ -127,5 +127,42 @@ describe('proxy', () => {
         "test7": undefined
       }
     });
+  });
+});
+
+describe('proxy Decoration', () => {
+  test('NoOptions', () => {
+    const instance = TestDecoration.create();
+
+    // @ts-ignore: Simulating dynamic field creation
+    instance.test7 = 1;
+    // @ts-ignore: Simulating dynamic field creation
+    instance.test8 = 2;
+
+    const obj = { ...instance };
+    expect(obj).toStrictEqual({
+      "test1": undefined,
+      "test2": undefined,
+      "test3": undefined,
+      "test4": undefined,
+      "test6": {
+        "test7": undefined
+      }
+    });
+  });
+
+  test('Options', () => {
+    const instance = TestDecorationOptions.create();
+
+    const t = () => {
+      // @ts-ignore: Simulating dynamic field creation
+      instance.testNew = 'new';
+    };
+    expect(t).toThrow(Error);
+
+    const p = () => {
+      instance._test4 = 'test4';
+    };
+    expect(p).toThrow(Error);
   });
 });

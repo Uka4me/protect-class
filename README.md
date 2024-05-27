@@ -10,14 +10,34 @@ npm install protect-class
 
 ## Usage
 
-```ts
+#### Javascript
+```js
 import { protect } from 'protect-class';
 
+class Foo {
+  bar = 'bar';
+}
+
+const cls = protect(new Foo());
+...
+
+```
+
+#### Typescript
+
+```ts
+import { Protect, protect } from 'protect-class';
+
+@Protect()
 class Foo {
   public bar: string = 'bar';
 }
 
-const cls = protect(new Foo);
+const cls = new Foo();
+/*
+  OR
+  const cls = protect(new Foo());
+*/
 ...
 
 ```
@@ -91,10 +111,11 @@ The protected instance outputs the getter key `test3` and when executing `Object
 
 ## Options
 
-`protect` - Creates a protected class proxy that restricts access to certain properties.
+### protect(cls: Object, options?: IOptionsProtectedObject)
+Creates a protected class proxy that restricts access to certain properties.
 
 ```js
-const cls = protect(new Foo, {
+const cls = protect(new Foo(), {
   allowProtectedField: true,
   allowReadError: true,
   allowWriteError: true,
@@ -103,6 +124,23 @@ const cls = protect(new Foo, {
 });
 ```
 
+### Protect(options?: IOptionsProtectedObject)
+Decorator function that creates a protected class proxy.
+
+```ts
+@Protect({
+  allowProtectedField: true,
+  allowReadError: true,
+  allowWriteError: true,
+  disableDeleteError: true,
+  disableCache: true
+})
+class Foo {
+  public bar: string = 'bar';
+}
+```
+
+### options: IOptionsProtectedObject
 * `allowProtectedField`: *boolean* - *(default: false)* Allow access to protected fields (fields starting with "_").
 * `allowReadError`: *boolean* - *(default: false)* Allow throwing an error when trying to access an unknown property.
 * `allowWriteError`: *boolean* - *(default: false)* Allow throwing an error when trying to write to an unknown property.

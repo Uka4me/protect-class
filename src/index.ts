@@ -1,3 +1,3 @@
-import protect from './proxy';
+import { protect, Protect } from './proxy';
 
-export { protect }
+export { protect, Protect }
